@@ -132,7 +132,6 @@ public class TIFFImage {
 		try setField(TIFFTAG_PHOTOMETRIC, photometric)
 		try setField(TIFFTAG_PLANARCONFIG, planarconfig)
 		try setField(TIFFTAG_ORIENTATION, orientation)
-
 	}
 
 	private func getField(_ tag: Int32) throws -> UInt32 {
@@ -155,6 +154,20 @@ public class TIFFImage {
 		samplesPerPixel = try getField(TIFFTAG_SAMPLESPERPIXEL)
 		rowsPerStrip = try getField(TIFFTAG_ROWSPERSTRIP)
 		// TODO: Implement a function to get a C array - for extraChannels
+
+        var count: UInt16 = 4
+        var channels: UnsafeMutablePointer<UInt16>? = UnsafeMutablePointer<UInt16>(allocatingCapacity: Int(count))
+        guard TIFFGetField_ExtraSample(tiffref, &count, &channels) == 1 else {
+            throw Errors.GetField
+        }
+        if let channels = channels {
+            for index in 0..<Int(count) {
+                extraChannels[index] = channels[index]
+            }
+        } else {
+            throw Errors.GetField
+        }
+
 		photometric = try getField(TIFFTAG_PHOTOMETRIC)
 		planarconfig = try getField(TIFFTAG_PLANARCONFIG)
 		orientation = try getField(TIFFTAG_ORIENTATION)
