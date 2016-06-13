@@ -55,7 +55,7 @@ public class TIFFFile {
 
     public private(set) var mode: String
 
-    public init(forReadingAt path: String) throws {
+    public init(readingAt path: String) throws {
         self.mode = "r"
         self.path = path
         guard let ptr = TIFFOpen(path, self.mode) else {
@@ -66,9 +66,10 @@ public class TIFFFile {
         let size = Int(attributes.width) * Int(attributes.height)
         let byteCount = size * Int(attributes.bitsPerSample)
         self.buffer = UnsafeMutablePointer(allocatingCapacity: byteCount)
+        try read()
     }
 
-    public init(forWritingAt path: String, size: Size, hasAlpha: Bool) throws {
+    public init(writingAt path: String, size: Size, hasAlpha: Bool) throws {
         self.mode = "w"
         self.path = path
         guard let ptr = TIFFOpen(path, mode) else {
