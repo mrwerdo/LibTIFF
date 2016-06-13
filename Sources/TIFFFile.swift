@@ -1,6 +1,7 @@
 // -----------------------------------------------------------------------------
 // Coordinates image data between the program and file systems.
 // -----------------------------------------------------------------------------
+
 import CLibTIFF
 import Geometry
 
@@ -14,6 +15,8 @@ public enum TIFFError : ErrorProtocol {
     case Open
     case Flush
     case WriteScanline
+    case ReadScanline
+    case InternalInconsistancy
 }
 
 public class TIFFFile {
@@ -27,7 +30,13 @@ public class TIFFFile {
     /// The size of the image (in pixels). If you want to resize the image, then
     /// you should create a new one.
     public var size: Size {
-        return Size(Int(attributes.width), Int(attributes.height))
+        get {
+            return Size(Int(attributes.width), Int(attributes.height))
+        }
+        set {
+            attributes.width = UInt32(newValue.width)
+            attributes.height = UInt32(newValue.height)
+        }
     }
 
     /// Stores the contents of the image. It must be in the form:
@@ -44,18 +53,12 @@ public class TIFFFile {
         return attributes.samplesPerPixel == 4
     }
 
-    public enum Mode : String {
-        case Read = "r"
-        case Write = "w"
-        case ReadWrite = "a"
-    }
-
-    public private(set) var mode: Mode
+    public private(set) var mode: String
 
     public init(forReadingAt path: String) throws {
-        self.mode = .Read
+        self.mode = "r"
         self.path = path
-        guard let ptr = TIFFOpen(path, self.mode.rawValue) else {
+        guard let ptr = TIFFOpen(path, self.mode) else {
             throw TIFFError.Open
         }
         self.tiffref = ptr
@@ -65,17 +68,98 @@ public class TIFFFile {
         self.buffer = UnsafeMutablePointer(allocatingCapacity: byteCount)
     }
 
+    public init(forWritingAt path: String, size: Size, hasAlpha: Bool) throws {
+        self.mode = "w"
+        self.path = path
+        guard let ptr = TIFFOpen(path, mode) else {
+            throw TIFFError.Open
+        }
+        self.tiffref = ptr
+        let extraSamples: [UInt16]
+        if hasAlpha {
+            extraSamples = [UInt16(EXTRASAMPLE_ASSOCALPHA)]
+        } else {
+            extraSamples = []
+        } 
+        self.attributes = try Attributes(writingAt: ptr,
+                                         size: size,
+                                         bitsPerSample: 8,
+                                         samplesPerPixel: 3 + (hasAlpha ? 1 : 0),
+                                         rowsPerStrip: 1,
+                                         photometric: UInt32(PHOTOMETRIC_RGB),
+                                         planarconfig: UInt32(PLANARCONFIG_CONTIG),
+                                         orientation: UInt32(ORIENTATION_TOPLEFT),
+                                         extraSamples: extraSamples)
+        let pixelCount = size.width * size.height
+        let byteCount = pixelCount * Int(attributes.bitsPerSample)
+        self.buffer = UnsafeMutablePointer(allocatingCapacity: byteCount)
+    }
+
+    deinit {
+        let pixelCount = size.width * size.height
+        let byteCount = pixelCount * Int(attributes.bitsPerSample)
+        self.buffer.deallocateCapacity(byteCount)
+        self.close()
+    }
+
+    public func close() {
+        TIFFClose(tiffref)
+    }
+
+    public func flush() throws {
+        guard TIFFFlush(tiffref) == 1 else {
+            throw TIFFError.Flush
+        }
+    }
+
     public struct Attributes {
         var tiffref: OpaquePointer
 
-        public private(set) var samples         : [UInt16]  = []
-        public private(set) var bitsPerSample   : UInt32    = 0
-        public private(set) var samplesPerPixel : UInt32    = 0
-        public private(set) var rowsPerStrip    : UInt32    = 0
-        public private(set) var photometric     : UInt32    = 0
-        public private(set) var orientation     : UInt32    = 0
-        public private(set) var width           : UInt32    = 0
-        public private(set) var height          : UInt32    = 0
+        public private(set) var extraSamples: [UInt16]  = [] {
+            didSet {
+                _ = try? write(samples: extraSamples)
+            }
+        }
+        public private(set) var bitsPerSample   : UInt32    = 0 {
+            didSet {
+                _ = try? write(bitsPerSample, for: TIFFTAG_BITSPERSAMPLE)
+            }
+        }
+        public private(set) var samplesPerPixel : UInt32    = 0 {
+            didSet {
+                _ = try? write(samplesPerPixel, for: TIFFTAG_SAMPLESPERPIXEL)
+            }
+        }
+        public private(set) var rowsPerStrip    : UInt32    = 0 {
+            didSet {
+                _ = try? write(rowsPerStrip, for: TIFFTAG_ROWSPERSTRIP)
+            }
+        }
+        public private(set) var photometric     : UInt32    = 0 {
+            didSet {
+                _ = try? write(photometric, for: TIFFTAG_PHOTOMETRIC)
+            }
+        }
+        public private(set) var planarconfig    : UInt32    = 0 {
+            didSet {
+                _ = try? write(planarconfig, for: TIFFTAG_PLANARCONFIG)
+            }
+        }
+        public private(set) var orientation     : UInt32    = 0 {
+            didSet {
+                _ = try? write(orientation, for: TIFFTAG_ORIENTATION)
+            }
+        }
+        public private(set) var width           : UInt32    = 0 {
+            didSet {
+                _ = try? write(width, for: TIFFTAG_IMAGEWIDTH)
+            }
+        }
+        public private(set) var height          : UInt32    = 0 {
+            didSet {
+                _ = try? write(height, for: TIFFTAG_IMAGELENGTH)
+            }
+        }
 
         init(tiffref: OpaquePointer) throws {
             self.tiffref    = tiffref
@@ -83,8 +167,43 @@ public class TIFFFile {
             samplesPerPixel = try read(tag: TIFFTAG_SAMPLESPERPIXEL)
             rowsPerStrip    = try read(tag: TIFFTAG_ROWSPERSTRIP)
             photometric     = try read(tag: TIFFTAG_PHOTOMETRIC)
+            planarconfig    = try read(tag: TIFFTAG_PLANARCONFIG)
             orientation     = try read(tag: TIFFTAG_ORIENTATION)
-            samples         = try readSamples()
+            width           = try read(tag: TIFFTAG_IMAGEWIDTH)
+            height          = try read(tag: TIFFTAG_IMAGELENGTH)
+            extraSamples         = try readSamples()
+        }
+
+        init(writingAt tiffref: OpaquePointer, 
+             size: Size, 
+             bitsPerSample: UInt32, 
+             samplesPerPixel: UInt32, 
+             rowsPerStrip: UInt32, 
+             photometric: UInt32, 
+             planarconfig: UInt32,
+             orientation: UInt32, 
+             extraSamples: [UInt16]) throws {
+
+            self.tiffref = tiffref
+            self.bitsPerSample      = bitsPerSample
+            self.samplesPerPixel    = samplesPerPixel
+            self.rowsPerStrip       = rowsPerStrip
+            self.photometric        = photometric
+            self.planarconfig       = planarconfig
+            self.orientation        = orientation
+            self.width              = UInt32(size.width)
+            self.height             = UInt32(size.height)
+            self.extraSamples            = extraSamples
+
+            try write(bitsPerSample, for: TIFFTAG_BITSPERSAMPLE)
+            try write(samplesPerPixel, for: TIFFTAG_SAMPLESPERPIXEL)
+            try write(rowsPerStrip, for: TIFFTAG_ROWSPERSTRIP)
+            try write(photometric, for: TIFFTAG_PHOTOMETRIC)
+            try write(planarconfig, for: TIFFTAG_PLANARCONFIG)
+            try write(orientation, for: TIFFTAG_ORIENTATION)
+            try write(width, for: TIFFTAG_IMAGEWIDTH)
+            try write(height, for: TIFFTAG_IMAGELENGTH)
+            try write(samples: extraSamples)
         }
 
         /// Warning: `value` must be of type UInt16, or UInt32.
@@ -155,7 +274,7 @@ public class TIFFFile {
             return samples 
         }
 
-        func writeSamples(samples: [UInt16]) throws {
+        func write(samples: [UInt16]) throws {
             var samples = samples
             let result = TIFFSetField_ExtraSample(tiffref,
                                                   UInt16(samples.count),
@@ -167,3 +286,39 @@ public class TIFFFile {
     }
 }
 
+extension TIFFFile {
+    func write() throws {
+        try write(verticalRange: 0..<size.height)
+        try flush()
+    }
+
+    func write(verticalRange r: Range<Int>) throws {
+        for y in r.lowerBound..<r.upperBound {
+            let samplesCount = Int(attributes.samplesPerPixel)
+            guard samplesCount * size.width == TIFFScanlineSize(tiffref) else {
+                throw TIFFError.InternalInconsistancy
+            }
+            let line = buffer.advanced(by: y * size.width * samplesCount)
+            guard TIFFWriteScanline(tiffref, line, UInt32(y), 0) == 1 else {
+                throw TIFFError.WriteScanline
+            }
+        }
+    }
+
+    func read() throws {
+        try read(verticalRange: 0..<size.height)
+    }
+
+    func read(verticalRange r: Range<Int>) throws {
+        for y in r.lowerBound..<r.upperBound {
+            let samplesCount = Int(attributes.samplesPerPixel)
+            guard samplesCount * size.width == TIFFScanlineSize(tiffref) else {
+                throw TIFFError.InternalInconsistancy
+            }
+            let line = buffer.advanced(by: y * size.width * samplesCount)
+            guard TIFFReadScanline(tiffref, line, UInt32(y), 0) == 1 else {
+                throw TIFFError.ReadScanline
+            }
+        }
+    }
+}
