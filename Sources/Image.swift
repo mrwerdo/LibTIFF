@@ -20,9 +20,9 @@ import Geometry
 /// 
 
 public struct Pixel<Channel> {
-    var count: Int
-    var channels: UnsafeMutablePointer<Channel>
-    var index: Int
+    public var count: Int
+    public var channels: UnsafeMutablePointer<Channel>
+    public var index: Int
 
     public init(channels: UnsafeMutablePointer<Channel>, count: Int, index: Int) {
         self.count = count
