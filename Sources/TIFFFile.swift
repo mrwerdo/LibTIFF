@@ -17,12 +17,13 @@ public enum TIFFError : ErrorProtocol {
     case WriteScanline
     case ReadScanline
     case InternalInconsistancy
+    case InvalidReference
 }
 
 public class TIFFFile {
     /// Stores a reference to the image handle (The contents is of type 
     /// `TIFF*` in C)
-    private var tiffref: OpaquePointer
+    private var tiffref: OpaquePointer?
     /// Stores the full path of the file.
     public private(set) var path: String
     /// Accesses the attributes of the TIFF file. 
@@ -104,17 +105,25 @@ public class TIFFFile {
     }
 
     public func close() {
-        TIFFClose(tiffref)
+        if let ref = tiffref {
+            TIFFClose(ref)
+            tiffref = nil
+            attributes.tiffref = nil
+        }
     }
 
     public func flush() throws {
-        guard TIFFFlush(tiffref) == 1 else {
-            throw TIFFError.Flush
+        if let ref = tiffref {
+            guard TIFFFlush(ref) == 1 else {
+                throw TIFFError.Flush
+            }
+        } else {
+            throw TIFFError.InvalidReference
         }
     }
 
     public struct Attributes {
-        var tiffref: OpaquePointer
+        var tiffref: OpaquePointer?
 
         public private(set) var extraSamples: [UInt16]  = [] {
             didSet {
@@ -213,14 +222,18 @@ public class TIFFFile {
 
         /// Warning: `value` must be of type UInt16, or UInt32.
         func write(_ value: Any, for tag: Int32) throws {
+            guard let ref = self.tiffref else {
+                throw TIFFError.InvalidReference
+            }
+                
             let result: Int32
             switch value {
             case is UInt16:
-                result = TIFFSetField_uint16(tiffref, 
+                result = TIFFSetField_uint16(ref, 
                                              UInt32(bitPattern: tag), 
                                              value as! UInt16)
             case is UInt32:
-                result = TIFFSetField_uint32(tiffref,
+                result = TIFFSetField_uint32(ref,
                                              UInt32(bitPattern: tag),
                                              value as! UInt32)
             default:
@@ -233,11 +246,15 @@ public class TIFFFile {
 
         /// Warning: Only UInt16 and UInt32 types are support.
         func read<T: Any>(tag: Int32) throws -> T {
+            guard let ref = tiffref else {
+                throw TIFFError.InvalidReference
+            }
+
             let result: Int32
             switch T.self {
             case is UInt16.Type:
                 var value = UInt16(0)
-                result = TIFFGetField_uint16(tiffref,
+                result = TIFFGetField_uint16(ref,
                                              UInt32(bitPattern: tag),
                                              &value)
                 guard result == 1 else {
@@ -246,7 +263,7 @@ public class TIFFFile {
                 return value as! T
             case is UInt32.Type:
                 var value = UInt32(0)
-                result = TIFFGetField_uint32(tiffref,
+                result = TIFFGetField_uint32(ref,
                                              UInt32(bitPattern: tag),
                                              &value)
                 guard result == 1 else {
@@ -259,10 +276,13 @@ public class TIFFFile {
         }
 
         func readSamples() throws -> [UInt16] {
+            guard let ref = tiffref else {
+                throw TIFFError.InvalidReference
+            }
             var count: UInt16 = 4
             typealias Ptr = UnsafeMutablePointer<UInt16>
             var buff: Ptr? = Ptr(allocatingCapacity: Int(count))
-            let result = TIFFGetField_ExtraSample(tiffref,
+            let result = TIFFGetField_ExtraSample(ref,
                                                   &count,
                                                   &buff)
             guard result == 1 else {
@@ -280,8 +300,11 @@ public class TIFFFile {
         }
 
         func write(samples: [UInt16]) throws {
+            guard let ref = tiffref else {
+                throw TIFFError.InvalidReference
+            }
             var samples = samples
-            let result = TIFFSetField_ExtraSample(tiffref,
+            let result = TIFFSetField_ExtraSample(ref,
                                                   UInt16(samples.count),
                                                   &samples)
             guard result == 1 else {
@@ -298,13 +321,17 @@ extension TIFFFile {
     }
 
     func write(verticalRange r: Range<Int>) throws {
+        guard let ref = tiffref else {
+            throw TIFFError.InvalidReference
+        }
+
         for y in r.lowerBound..<r.upperBound {
             let samplesCount = Int(attributes.samplesPerPixel)
-            guard samplesCount * size.width == TIFFScanlineSize(tiffref) else {
+            guard samplesCount * size.width == TIFFScanlineSize(ref) else {
                 throw TIFFError.InternalInconsistancy
             }
             let line = buffer.advanced(by: y * size.width * samplesCount)
-            guard TIFFWriteScanline(tiffref, line, UInt32(y), 0) == 1 else {
+            guard TIFFWriteScanline(ref, line, UInt32(y), 0) == 1 else {
                 throw TIFFError.WriteScanline
             }
         }
@@ -315,13 +342,16 @@ extension TIFFFile {
     }
 
     func read(verticalRange r: Range<Int>) throws {
+        guard let ref = tiffref else {
+            throw TIFFError.InvalidReference
+        }
         for y in r.lowerBound..<r.upperBound {
             let samplesCount = Int(attributes.samplesPerPixel)
-            guard samplesCount * size.width == TIFFScanlineSize(tiffref) else {
+            guard samplesCount * size.width == TIFFScanlineSize(ref) else {
                 throw TIFFError.InternalInconsistancy
             }
             let line = buffer.advanced(by: y * size.width * samplesCount)
-            guard TIFFReadScanline(tiffref, line, UInt32(y), 0) == 1 else {
+            guard TIFFReadScanline(ref, line, UInt32(y), 0) == 1 else {
                 throw TIFFError.ReadScanline
             }
         }
