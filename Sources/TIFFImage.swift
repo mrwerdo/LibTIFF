@@ -10,7 +10,7 @@ public class TIFFImage : ImageProtocol {
     public private(set) var hasAlpha: Bool
 
     public init(size: Size, hasAlpha: Bool = false) {
-        self.hasAlpha = true
+        self.hasAlpha = hasAlpha
         self.size = size
         let c = size.width * size.height * (hasAlpha ? 4 : 3)
         self.buffer = UnsafeMutablePointer(allocatingCapacity: c)
