@@ -1,5 +1,6 @@
 import XCTest
 import Geometry
+import CLibTIFF
 @testable import LibTIFF
 
 class TIFFFileTests : XCTestCase {

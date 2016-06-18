@@ -40,7 +40,7 @@ public class TIFFFile {
     }
 
     /// Stores the contents of the image. It must be in the form:
-     ///
+    ///
     ///     When y=0, x1, x2, x3, x4, x5, ..., xN
     ///     When y=1, x1, x2, x3, x4, x5, ..., xN
     ///     When y=., ..., ...,           ..., xN
@@ -172,7 +172,11 @@ public class TIFFFile {
             orientation     = try read(tag: TIFFTAG_ORIENTATION)
             width           = try read(tag: TIFFTAG_IMAGEWIDTH)
             height          = try read(tag: TIFFTAG_IMAGELENGTH)
-            extraSamples         = try readSamples()
+            if let es = try? readSamples() {
+                extraSamples = es
+            } else {
+                extraSamples = []
+            }
         }
 
         init(writingAt tiffref: OpaquePointer, 
