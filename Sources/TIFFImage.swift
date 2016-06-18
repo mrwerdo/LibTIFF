@@ -100,7 +100,7 @@ public class TIFFImage : ImageProtocol {
         self.buffer = UnsafeMutablePointer(allocatingCapacity: byteCount)
     }
 
-    public init(size: Size, hasAlpha: Bool) {
+    public init(size: Size, hasAlpha: Bool = false) {
         self.mode = nil
         self.path = nil
         self.tiffref = nil
