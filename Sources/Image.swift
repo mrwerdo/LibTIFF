@@ -83,7 +83,7 @@ struct ImageIterator<Image: ImageProtocol> : IteratorProtocol {
 }
 
 extension ImageProtocol {
-//    func makeIterator() -> ImageIterator<Self> {
-//        return ImageIterator(self)
-//    }
+    func makeIterator() -> ImageIterator<Self> {
+        return ImageIterator(self)
+    }
 }
