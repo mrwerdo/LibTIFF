@@ -315,12 +315,12 @@ public class TIFFFile {
 }
 
 extension TIFFFile {
-    func write() throws {
+    public func write() throws {
         try write(verticalRange: 0..<size.height)
         try flush()
     }
 
-    func write(verticalRange r: Range<Int>) throws {
+    public func write(verticalRange r: Range<Int>) throws {
         guard let ref = tiffref else {
             throw TIFFError.InvalidReference
         }
@@ -337,11 +337,11 @@ extension TIFFFile {
         }
     }
 
-    func read() throws {
+    public func read() throws {
         try read(verticalRange: 0..<size.height)
     }
 
-    func read(verticalRange r: Range<Int>) throws {
+    public func read(verticalRange r: Range<Int>) throws {
         guard let ref = tiffref else {
             throw TIFFError.InvalidReference
         }
