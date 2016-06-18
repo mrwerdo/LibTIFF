@@ -25,7 +25,7 @@ public class TIFFImage : ImageProtocol {
     /// `TIFF*` in C)
     private var tiffref: OpaquePointer?
     /// Stores the full path of the file.
-    public private(set) var path: String
+    public private(set) var path: String?
     /// Accesses the attributes of the TIFF file. 
     public private(set) var attributes: Attributes
     /// The size of the image (in pixels). If you want to resize the image, then
@@ -57,7 +57,7 @@ public class TIFFImage : ImageProtocol {
         return Int(attributes.samplesPerPixel)
     }
 
-    public private(set) var mode: String
+    public private(set) var mode: String?
 
     public init(readingAt path: String) throws {
         self.mode = "r"
@@ -98,6 +98,35 @@ public class TIFFImage : ImageProtocol {
         let pixelCount = size.width * size.height
         let byteCount = pixelCount * Int(attributes.bitsPerSample)
         self.buffer = UnsafeMutablePointer(allocatingCapacity: byteCount)
+    }
+
+    public init(size: Size, hasAlpha: Bool) {
+        self.mode = nil
+        self.path = nil
+        self.tiffref = nil
+        let extraSamples = [UInt16(EXTRASAMPLE_ASSOCALPHA)]
+        self.attributes = try! Attributes(size: size,
+                                     bitsPerSample: 8,
+                                     samplesPerPixel: hasAlpha ? 4 : 3,
+                                     rowsPerStrip: 1,
+                                     photometric: UInt32(PHOTOMETRIC_RGB),
+                                     planarconfig: UInt32(PLANARCONFIG_CONTIG),
+                                     orientation: UInt32(ORIENTATION_TOPLEFT),
+                                     extraSamples: extraSamples)
+        let pixelCount = size.width * size.height
+        let byteCount = pixelCount * Int(attributes.bitsPerSample)
+        self.buffer = UnsafeMutablePointer(allocatingCapacity: byteCount)
+    }
+
+
+    public func open(at path: String, mode: String) throws {
+        self.mode = mode
+        self.path = path
+        guard let ptr = TIFFOpen(path, mode) else {
+            throw TIFFError.Open
+        }
+        self.tiffref = ptr
+        self.attributes = try Attributes(writingAt: ptr, coping: self.attributes)
     }
 
     deinit {
@@ -176,6 +205,7 @@ public class TIFFImage : ImageProtocol {
 
         init(tiffref: OpaquePointer) throws {
             self.tiffref    = tiffref
+            self.temporySettings = nil
             bitsPerSample   = try read(tag: TIFFTAG_BITSPERSAMPLE)
             samplesPerPixel = try read(tag: TIFFTAG_SAMPLESPERPIXEL)
             rowsPerStrip    = try read(tag: TIFFTAG_ROWSPERSTRIP)
@@ -191,7 +221,9 @@ public class TIFFImage : ImageProtocol {
             }
         }
 
-        init(writingAt tiffref: OpaquePointer, 
+        private var temporySettings: [Int32 : Any]?
+
+        init(writingAt tiffref: OpaquePointer? = nil, 
              size: Size, 
              bitsPerSample: UInt32, 
              samplesPerPixel: UInt32, 
@@ -210,7 +242,37 @@ public class TIFFImage : ImageProtocol {
             self.orientation        = orientation
             self.width              = UInt32(size.width)
             self.height             = UInt32(size.height)
-            self.extraSamples            = extraSamples
+            self.extraSamples       = extraSamples
+
+            if tiffref == nil {
+                temporySettings = [:]
+            }
+
+            try write(bitsPerSample, for: TIFFTAG_BITSPERSAMPLE)
+            try write(samplesPerPixel, for: TIFFTAG_SAMPLESPERPIXEL)
+            try write(rowsPerStrip, for: TIFFTAG_ROWSPERSTRIP)
+            try write(photometric, for: TIFFTAG_PHOTOMETRIC)
+            try write(planarconfig, for: TIFFTAG_PLANARCONFIG)
+            try write(orientation, for: TIFFTAG_ORIENTATION)
+            try write(width, for: TIFFTAG_IMAGEWIDTH)
+            try write(height, for: TIFFTAG_IMAGELENGTH)
+            try write(samples: extraSamples)
+        }
+
+        init(writingAt tiffref: OpaquePointer, coping attributes: Attributes) throws {
+            self.tiffref = tiffref
+            self.temporySettings = nil
+            
+            self.tiffref = tiffref
+            self.bitsPerSample      = attributes.bitsPerSample
+            self.samplesPerPixel    = attributes.samplesPerPixel
+            self.rowsPerStrip       = attributes.rowsPerStrip
+            self.photometric        = attributes.photometric
+            self.planarconfig       = attributes.planarconfig
+            self.orientation        = attributes.orientation
+            self.width              = UInt32(attributes.width)
+            self.height             = UInt32(attributes.height)
+            self.extraSamples       = attributes.extraSamples
 
             try write(bitsPerSample, for: TIFFTAG_BITSPERSAMPLE)
             try write(samplesPerPixel, for: TIFFTAG_SAMPLESPERPIXEL)
@@ -224,8 +286,12 @@ public class TIFFImage : ImageProtocol {
         }
 
         /// Warning: `value` must be of type UInt16, or UInt32.
-        func write(_ value: Any, for tag: Int32) throws {
+        mutating func write(_ value: Any, for tag: Int32) throws {
             guard let ref = self.tiffref else {
+                if temporySettings != nil {
+                    temporySettings![tag] = value
+                    return
+                }
                 throw TIFFError.InvalidReference
             }
                 
@@ -250,6 +316,17 @@ public class TIFFImage : ImageProtocol {
         /// Warning: Only UInt16 and UInt32 types are support.
         func read<T: Any>(tag: Int32) throws -> T {
             guard let ref = tiffref else {
+                if temporySettings != nil{
+                    switch T.self {
+                    case is UInt16.Type:
+                        fallthrough
+                    case is UInt32.Type:
+                        return temporySettings![tag] as! T
+                    default:
+                        fatalError("cannot read a tag whose value is \(T.self). It must be either UInt32 or UInt16.")
+                    }
+
+                }
                 throw TIFFError.InvalidReference
             }
 
@@ -280,6 +357,9 @@ public class TIFFImage : ImageProtocol {
 
         func readSamples() throws -> [UInt16] {
             guard let ref = tiffref else {
+                if temporySettings != nil{
+                    return temporySettings![TIFFTAG_EXTRASAMPLES] as! [UInt16]
+                }
                 throw TIFFError.InvalidReference
             }
             var count: UInt16 = 4
@@ -302,8 +382,12 @@ public class TIFFImage : ImageProtocol {
             return samples 
         }
 
-        func write(samples: [UInt16]) throws {
+        mutating func write(samples: [UInt16]) throws {
             guard let ref = tiffref else {
+                if temporySettings != nil {
+                    temporySettings![TIFFTAG_EXTRASAMPLES] = samples
+                    return
+                }
                 throw TIFFError.InvalidReference
             }
             var samples = samples
