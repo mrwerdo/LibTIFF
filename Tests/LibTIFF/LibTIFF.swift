@@ -110,11 +110,85 @@ class TIFFImageTests : XCTestCase {
         }
     }
 
+
+    /**
+
+    Note, this program crashes as TIFFFile.close() is called twice in a row.
+    There was nothing in the docs which say you can't call close twice.
+
+    It no longer crashes.
+
+    */
+    func testMultipleCloses() {
+        let size = 100 * 100 * 3
+        var written = [UInt8](repeating: 0, count: size)
+        let image = try! TIFFImage(writingAt: path(), size: Size(100, 100), hasAlpha: false)
+
+        for y in 0..<100 {
+            for dx in 0..<100 {
+                let x = dx * 3
+                let index = y * 300 + x
+                image.buffer[index + 0] = 255
+                image.buffer[index + 1] = 0
+                image.buffer[index + 2] = 0
+            }
+        }
+        for i in 0..<size {
+            written[i] = image.buffer[i]
+        }
+
+        try! image.write()
+        image.close()
+        image.close()
+
+        let reading = try! TIFFImage(readingAt: path())
+        for i in 0..<size {
+            if written[i] != reading.buffer[i] {
+                print(written[i], reading.buffer[i], "contents of written file != contents of read file")
+            }
+        }
+    }
+
+    func testWritingWithoutFileBacking() {
+
+        let image = TIFFImage(size: Size(128, 128))
+        
+        var counter: UInt32 = 0
+        for pixel in image {
+            let d = pixel.channels
+            for k in 0..<image.channelCount {
+                d[k] = UInt8(truncatingBitPattern: counter)
+                counter += 1
+            }
+        }
+        counter = 0
+        while counter < UInt32(image.size.width * image.size.height * image.channelCount) {
+            let i = Int(counter)
+            if UInt8(truncatingBitPattern: counter) != image.buffer[i] {
+                print(counter, image.buffer[i], "contents of image.buffer != input")
+            }
+            counter += 1
+        }
+        try! image.open(at: path(), mode: "w")
+        try! image.write()
+        counter = 0
+        while counter < UInt32(image.size.width * image.size.height * image.channelCount) {
+            let i = Int(counter)
+            if UInt8(truncatingBitPattern: counter) != image.buffer[i] {
+                print(counter, image.buffer[i], "contents of image.buffer != input")
+            }
+            counter += 1
+        }
+        image.close()
+    }
+
     static var allTests : [(String, (TIFFImageTests) -> () throws -> Void)] {
         return [
             ("testWritingAndReading", testWritingAndReading),
             ("testBlueAndGreenVertical", testBlueAndGreenImageVertical),
             ("testBlueAndGreenImageHorizontal", testBlueAndGreenImageHorizontal),
+            ("testMultipleCloses", testMultipleCloses),
+            ("testWritingWithoutFileBacking", testWritingWithoutFileBacking)
         ]
     }
 }
