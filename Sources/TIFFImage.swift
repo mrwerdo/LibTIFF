@@ -104,7 +104,12 @@ public class TIFFImage : ImageProtocol {
         self.mode = nil
         self.path = nil
         self.tiffref = nil
-        let extraSamples = [UInt16(EXTRASAMPLE_ASSOCALPHA)]
+        let extraSamples: [UInt16]
+        if hasAlpha {
+            extraSamples = [UInt16(EXTRASAMPLE_ASSOCALPHA)]
+        } else {
+            extraSamples = []
+        }
         self.attributes = try! Attributes(size: size,
                                      bitsPerSample: 8,
                                      samplesPerPixel: hasAlpha ? 4 : 3,
