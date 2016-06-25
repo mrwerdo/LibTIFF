@@ -3,7 +3,7 @@ import Geometry
 import CLibTIFF
 @testable import LibTIFF
 
-class TIFFFileTests : XCTestCase {
+class TIFFImageTests : XCTestCase {
 
     var basePath: String!
     var tempPath: String!
@@ -35,7 +35,7 @@ class TIFFFileTests : XCTestCase {
     func testWritingAndReading() {
         let size = 100 * 100 * 3
         var written = [UInt8](repeating: 0, count: size)
-        let image = try! TIFFFile(writingAt: path(), size: Size(100, 100), hasAlpha: false)
+        let image = try! TIFFImage(writingAt: path(), size: Size(100, 100), hasAlpha: false)
 
         // Turn on every red pixel.
         var c = 0
@@ -52,7 +52,7 @@ class TIFFFileTests : XCTestCase {
         try! image.write()
         image.close()
 
-        let reading = try! TIFFFile(readingAt: path())
+        let reading = try! TIFFImage(readingAt: path())
         for i in 0..<size {
             XCTAssert(written[i] == reading.buffer[i], "contents of written file != contents of read file")
         }
@@ -61,7 +61,7 @@ class TIFFFileTests : XCTestCase {
     func testBlueAndGreenImageVertical() {
         let size = 100 * 100 * 3
         var written = [UInt8](repeating: 0, count: size)
-        let image = try! TIFFFile(writingAt: path(), size: Size(100, 100), hasAlpha: false)
+        let image = try! TIFFImage(writingAt: path(), size: Size(100, 100), hasAlpha: false)
 
         for y in 0..<100 {
             for x in 0..<100 {
@@ -78,7 +78,7 @@ class TIFFFileTests : XCTestCase {
         try! image.write()
         image.close()
 
-        let reading = try! TIFFFile(readingAt: path())
+        let reading = try! TIFFImage(readingAt: path())
         for i in 0..<size {
             XCTAssert(written[i] == reading.buffer[i], "contents of written file != contents of read file")
         }
@@ -87,7 +87,7 @@ class TIFFFileTests : XCTestCase {
     func testBlueAndGreenImageHorizontal() {
         let size = 100 * 100 * 3
         var written = [UInt8](repeating: 0, count: size)
-        let image = try! TIFFFile(writingAt: path(), size: Size(100, 100), hasAlpha: false)
+        let image = try! TIFFImage(writingAt: path(), size: Size(100, 100), hasAlpha: false)
 
         for y in 0..<100 {
             let offset = y % 3
@@ -104,13 +104,13 @@ class TIFFFileTests : XCTestCase {
         try! image.write()
         image.close()
 
-        let reading = try! TIFFFile(readingAt: path())
+        let reading = try! TIFFImage(readingAt: path())
         for i in 0..<size {
             XCTAssert(written[i] == reading.buffer[i], "contents of written file != contents of read file")
         }
     }
 
-    static var allTests : [(String, (TIFFFileTests) -> () throws -> Void)] {
+    static var allTests : [(String, (TIFFImageTests) -> () throws -> Void)] {
         return [
             ("testWritingAndReading", testWritingAndReading),
             ("testBlueAndGreenVertical", testBlueAndGreenImageVertical),
