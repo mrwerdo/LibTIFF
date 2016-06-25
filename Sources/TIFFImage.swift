@@ -241,15 +241,27 @@ public class TIFFImage : ImageProtocol {
             self.height             = UInt32(size.height)
             self.extraSamples       = extraSamples
 
-            try write(bitsPerSample, for: TIFFTAG_BITSPERSAMPLE)
-            try write(samplesPerPixel, for: TIFFTAG_SAMPLESPERPIXEL)
-            try write(rowsPerStrip, for: TIFFTAG_ROWSPERSTRIP)
-            try write(photometric, for: TIFFTAG_PHOTOMETRIC)
-            try write(planarconfig, for: TIFFTAG_PLANARCONFIG)
-            try write(orientation, for: TIFFTAG_ORIENTATION)
-            try write(width, for: TIFFTAG_IMAGEWIDTH)
-            try write(height, for: TIFFTAG_IMAGELENGTH)
-            try write(samples: extraSamples)
+            if tiffref == nil {
+                _ = try? write(bitsPerSample, for: TIFFTAG_BITSPERSAMPLE)
+                _ = try? write(samplesPerPixel, for: TIFFTAG_SAMPLESPERPIXEL)
+                _ = try? write(rowsPerStrip, for: TIFFTAG_ROWSPERSTRIP)
+                _ = try? write(photometric, for: TIFFTAG_PHOTOMETRIC)
+                _ = try? write(planarconfig, for: TIFFTAG_PLANARCONFIG)
+                _ = try? write(orientation, for: TIFFTAG_ORIENTATION)
+                _ = try? write(width, for: TIFFTAG_IMAGEWIDTH)
+                _ = try? write(height, for: TIFFTAG_IMAGELENGTH)
+                _ = try? write(samples: extraSamples)
+            } else {
+                try write(bitsPerSample, for: TIFFTAG_BITSPERSAMPLE)
+                try write(samplesPerPixel, for: TIFFTAG_SAMPLESPERPIXEL)
+                try write(rowsPerStrip, for: TIFFTAG_ROWSPERSTRIP)
+                try write(photometric, for: TIFFTAG_PHOTOMETRIC)
+                try write(planarconfig, for: TIFFTAG_PLANARCONFIG)
+                try write(orientation, for: TIFFTAG_ORIENTATION)
+                try write(width, for: TIFFTAG_IMAGEWIDTH)
+                try write(height, for: TIFFTAG_IMAGELENGTH)
+                try write(samples: extraSamples)
+            }
         }
 
         init(writingAt tiffref: OpaquePointer, coping attributes: Attributes) throws {
