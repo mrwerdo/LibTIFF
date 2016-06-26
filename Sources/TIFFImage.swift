@@ -28,7 +28,7 @@ public class TIFFImage<Channel> : ImageProtocol {
     /// Stores the full path of the file.
     public private(set) var path: String?
     /// Accesses the attributes of the TIFF file. 
-    public private(set) var attributes: TIFFAttributes
+    public var attributes: TIFFAttributes
     /// The size of the image (in pixels). If you want to resize the image, then
     /// you should create a new one.
     public var size: Size {
@@ -351,7 +351,7 @@ public struct TIFFAttributes {
     }
 
     /// Warning: `value` must be of type UInt16, or UInt32.
-    mutating func write(_ value: Any, for tag: Int32) throws {
+    public mutating func write(_ value: Any, for tag: Int32) throws {
         guard let ref = self.tiffref else {
             throw TIFFError.InvalidReference
         }
@@ -375,7 +375,7 @@ public struct TIFFAttributes {
     }
 
     /// Warning: Only UInt16 and UInt32 types are support.
-    func read<T: Any>(tag: Int32) throws -> T {
+    public func read<T: Any>(tag: Int32) throws -> T {
         guard let ref = tiffref else {
             throw TIFFError.InvalidReference
         }
