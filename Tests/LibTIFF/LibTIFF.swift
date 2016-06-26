@@ -35,7 +35,7 @@ class TIFFImageTests : XCTestCase {
     func testWritingAndReading() {
         let size = 100 * 100 * 3
         var written = [UInt8](repeating: 0, count: size)
-        let image = try! TIFFImage(writingAt: path(), size: Size(100, 100), hasAlpha: false)
+        let image = try! TIFFImage<UInt8>(writingAt: path(), size: Size(100, 100), hasAlpha: false)
 
         // Turn on every red pixel.
         var c = 0
@@ -52,7 +52,7 @@ class TIFFImageTests : XCTestCase {
         try! image.write()
         image.close()
 
-        let reading = try! TIFFImage(readingAt: path())
+        let reading = try! TIFFImage<UInt8>(readingAt: path())
         for i in 0..<size {
             XCTAssert(written[i] == reading.buffer[i], "contents of written file != contents of read file")
         }
@@ -61,7 +61,7 @@ class TIFFImageTests : XCTestCase {
     func testBlueAndGreenImageVertical() {
         let size = 100 * 100 * 3
         var written = [UInt8](repeating: 0, count: size)
-        let image = try! TIFFImage(writingAt: path(), size: Size(100, 100), hasAlpha: false)
+        let image = try! TIFFImage<UInt8>(writingAt: path(), size: Size(100, 100), hasAlpha: false)
 
         for y in 0..<100 {
             for x in 0..<100 {
@@ -78,7 +78,7 @@ class TIFFImageTests : XCTestCase {
         try! image.write()
         image.close()
 
-        let reading = try! TIFFImage(readingAt: path())
+        let reading = try! TIFFImage<UInt8>(readingAt: path())
         for i in 0..<size {
             XCTAssert(written[i] == reading.buffer[i], "contents of written file != contents of read file")
         }
@@ -87,7 +87,7 @@ class TIFFImageTests : XCTestCase {
     func testBlueAndGreenImageHorizontal() {
         let size = 100 * 100 * 3
         var written = [UInt8](repeating: 0, count: size)
-        let image = try! TIFFImage(writingAt: path(), size: Size(100, 100), hasAlpha: false)
+        let image = try! TIFFImage<UInt8>(writingAt: path(), size: Size(100, 100), hasAlpha: false)
 
         for y in 0..<100 {
             let offset = y % 3
@@ -104,7 +104,7 @@ class TIFFImageTests : XCTestCase {
         try! image.write()
         image.close()
 
-        let reading = try! TIFFImage(readingAt: path())
+        let reading = try! TIFFImage<UInt8>(readingAt: path())
         for i in 0..<size {
             XCTAssert(written[i] == reading.buffer[i], "contents of written file != contents of read file")
         }
@@ -122,7 +122,7 @@ class TIFFImageTests : XCTestCase {
     func testMultipleCloses() {
         let size = 100 * 100 * 3
         var written = [UInt8](repeating: 0, count: size)
-        let image = try! TIFFImage(writingAt: path(), size: Size(100, 100), hasAlpha: false)
+        let image = try! TIFFImage<UInt8>(writingAt: path(), size: Size(100, 100), hasAlpha: false)
 
         for y in 0..<100 {
             for dx in 0..<100 {
@@ -141,7 +141,7 @@ class TIFFImageTests : XCTestCase {
         image.close()
         image.close()
 
-        let reading = try! TIFFImage(readingAt: path())
+        let reading = try! TIFFImage<UInt8>(readingAt: path())
         for i in 0..<size {
             if written[i] != reading.buffer[i] {
                 print(written[i], reading.buffer[i], "contents of written file != contents of read file")
@@ -151,7 +151,7 @@ class TIFFImageTests : XCTestCase {
 
     func testWritingWithoutFileBacking() {
 
-        let image = TIFFImage(size: Size(128, 128))
+        let image = TIFFImage<UInt8>(size: Size(128, 128))
         
         var counter: UInt32 = 0
         for pixel in image {
@@ -182,13 +182,45 @@ class TIFFImageTests : XCTestCase {
         image.close()
     }
 
+    func testBitsPerSampleUInt32() {
+        let size = 100 * 100 * 3
+        var written = [UInt32](repeating: 0, count: size)
+        let image = try! TIFFImage<UInt32>(writingAt: path(), size: Size(100, 100), hasAlpha: false)
+
+        for y in 0..<100 {
+            for dx in 0..<100 {
+                let x = dx * 3
+                let index = y * 300 + x
+                image.buffer[index + 0] = 4294967295
+                image.buffer[index + 1] = 0
+                image.buffer[index + 2] = 0
+            }
+        }
+
+        for i in 0..<size {
+            written[i] = image.buffer[i]
+        }
+
+        try! image.write()
+        image.close()
+
+        let reading = try! TIFFImage<UInt32>(readingAt: path())
+        for i in 0..<size {
+            if written[i] != reading.buffer[i] {
+                print(written[i], reading.buffer[i], "contents of written file != contents of read file")
+            }
+        }
+        print(path())
+    }
+
     static var allTests : [(String, (TIFFImageTests) -> () throws -> Void)] {
         return [
-            ("testWritingAndReading", testWritingAndReading),
-            ("testBlueAndGreenVertical", testBlueAndGreenImageVertical),
+            ("testWritingAndReading",           testWritingAndReading),
+            ("testBlueAndGreenVertical",        testBlueAndGreenImageVertical),
             ("testBlueAndGreenImageHorizontal", testBlueAndGreenImageHorizontal),
-            ("testMultipleCloses", testMultipleCloses),
-            ("testWritingWithoutFileBacking", testWritingWithoutFileBacking)
+            ("testMultipleCloses",              testMultipleCloses),
+            ("testWritingWithoutFileBacking",   testWritingWithoutFileBacking),
+            ("testBitsPerSampleUInt32",         testBitsPerSampleUInt32)
         ]
     }
 }

@@ -34,7 +34,7 @@ public struct Pixel<Channel> {
 public protocol ImageProtocol : Collection {
     associatedtype Channel
 
-    var size: Size { get set }
+    var size: Size { get }
     var channelCount: Int { get }
     var buffer: UnsafeMutablePointer<Channel> { get }
 }
