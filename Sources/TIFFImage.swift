@@ -347,14 +347,14 @@ public struct TIFFAttributes {
     }
 
 
-    public func set(value: UInt16, for tag: Int32) throws {
+    public func set(tag: Int32, with value: UInt16) throws {
         try write(value, for: tag)
     }
     public func get(tag: Int32) throws -> UInt16 {
         return try read(tag: tag)
     }
 
-    public func set(value: UInt32, for tag: Int32) throws {
+    public func set(tag: Int32, with value: UInt32) throws {
         try write(value, for: tag)
     }
     public func get(tag: Int32) throws -> UInt32 {
