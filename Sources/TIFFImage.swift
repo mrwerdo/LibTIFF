@@ -35,10 +35,6 @@ public class TIFFImage<Channel> : ImageProtocol {
         get {
             return Size(Int(attributes.width), Int(attributes.height))
         }
-    //    set {
-    //        attributes.width = UInt32(newValue.width)
-    //        attributes.height = UInt32(newValue.height)
-    //    }
     }
 
     /// Stores the contents of the image. It must be in the form:
@@ -350,8 +346,23 @@ public struct TIFFAttributes {
         _ = try? write(samples: extraSamples)
     }
 
+
+    public func set(value: UInt16, for tag: Int32) throws {
+        try write(value, for: tag)
+    }
+    public func get(tag: Int32) throws -> UInt16 {
+        return try read(tag: tag)
+    }
+
+    public func set(value: UInt32, for tag: Int32) throws {
+        try write(value, for: tag)
+    }
+    public func get(tag: Int32) throws -> UInt32 {
+        return try read(tag: tag)
+    }
+
     /// Warning: `value` must be of type UInt16, or UInt32.
-    public mutating func write(_ value: Any, for tag: Int32) throws {
+    private func write(_ value: Any, for tag: Int32) throws {
         guard let ref = self.tiffref else {
             throw TIFFError.InvalidReference
         }
@@ -375,7 +386,7 @@ public struct TIFFAttributes {
     }
 
     /// Warning: Only UInt16 and UInt32 types are support.
-    public func read<T: Any>(tag: Int32) throws -> T {
+    private func read<T: Any>(tag: Int32) throws -> T {
         guard let ref = tiffref else {
             throw TIFFError.InvalidReference
         }
