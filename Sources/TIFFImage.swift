@@ -148,6 +148,7 @@ public class TIFFImage<Channel> : ImageProtocol {
 
     public func close() {
         if let ref = tiffref {
+            TIFFFlush(ref)
             TIFFClose(ref)
             tiffref = nil
             attributes.tiffref = nil
