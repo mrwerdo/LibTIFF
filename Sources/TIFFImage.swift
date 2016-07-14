@@ -5,7 +5,7 @@
 import CLibTIFF
 import Geometry
 
-public enum TIFFError : ErrorProtocol {
+public enum TIFFError : Error {
     /// Stores the reference to the tag.
     case SetField(Int32)
 
@@ -64,7 +64,7 @@ public class TIFFImage<Channel> : ImageProtocol {
         }
         self.tiffref = ptr
         self.attributes = try TIFFAttributes(tiffref: ptr)
-        guard UInt32(8 * strideof(Channel)) == attributes.bitsPerSample else {
+        guard UInt32(8 * strideof(Channel.self)) == attributes.bitsPerSample else {
             throw TIFFError.IncorrectChannelSize(attributes.bitsPerSample)
         }
         let size = Int(attributes.width) * Int(attributes.height)
@@ -86,7 +86,7 @@ public class TIFFImage<Channel> : ImageProtocol {
         } else {
             extraSamples = []
         } 
-        let bps = UInt32(strideof(Channel) * 8)
+        let bps = UInt32(strideof(Channel.self) * 8)
         self.attributes = try TIFFAttributes(writingAt: ptr,
                                          size: size,
                                          bitsPerSample: bps,
@@ -111,7 +111,7 @@ public class TIFFImage<Channel> : ImageProtocol {
         } else {
             extraSamples = []
         }
-        let bps = UInt32(strideof(Channel) * 8)
+        let bps = UInt32(strideof(Channel.self) * 8)
         self.attributes = try! TIFFAttributes(size: size,
                                      bitsPerSample: bps,
                                      samplesPerPixel: hasAlpha ? 4 : 3,
@@ -134,7 +134,7 @@ public class TIFFImage<Channel> : ImageProtocol {
         }
         self.tiffref = ptr
         self.attributes = try TIFFAttributes(writingAt: ptr, coping: self.attributes)
-        guard UInt32(8 * strideof(Channel)) == attributes.bitsPerSample else {
+        guard UInt32(8 * strideof(Channel.self)) == attributes.bitsPerSample else {
             throw TIFFError.IncorrectChannelSize(attributes.bitsPerSample)
         }
     }
@@ -177,7 +177,7 @@ extension TIFFImage {
         }
 
         let scount = Int(attributes.samplesPerPixel)
-        let expectedBytesInAScanline = strideof(Channel) * scount * size.width
+        let expectedBytesInAScanline = strideof(Channel.self) * scount * size.width
         for y in r.lowerBound..<r.upperBound {
             guard expectedBytesInAScanline == TIFFScanlineSize(ref) else {
                 throw TIFFError.InternalInconsistancy
@@ -198,7 +198,7 @@ extension TIFFImage {
             throw TIFFError.InvalidReference
         }
         let scount = Int(attributes.samplesPerPixel)
-        let expectedBytesInAScanline = strideof(Channel) * scount * size.width
+        let expectedBytesInAScanline = strideof(Channel.self) * scount * size.width
         for y in r.lowerBound..<r.upperBound {
             guard expectedBytesInAScanline == TIFFScanlineSize(ref) else {
                 throw TIFFError.InternalInconsistancy
