@@ -24,7 +24,7 @@ public enum TIFFError : Error {
 public class TIFFImage<Channel> : ImageProtocol {
     /// Stores a reference to the image handle (The contents is of type 
     /// `TIFF*` in C)
-    private var tiffref: OpaquePointer?
+    fileprivate var tiffref: OpaquePointer?
     /// Stores the full path of the file.
     public private(set) var path: String?
     /// Accesses the attributes of the TIFF file. 
@@ -64,12 +64,13 @@ public class TIFFImage<Channel> : ImageProtocol {
         }
         self.tiffref = ptr
         self.attributes = try TIFFAttributes(tiffref: ptr)
-        guard UInt32(8 * strideof(Channel.self)) == attributes.bitsPerSample else {
+        let k = MemoryLayout<Channel>.size
+        guard UInt32(8 * k) == attributes.bitsPerSample else {
             throw TIFFError.IncorrectChannelSize(attributes.bitsPerSample)
         }
         let size = Int(attributes.width) * Int(attributes.height)
         let byteCount = size * Int(attributes.bitsPerSample)
-        self.buffer = UnsafeMutablePointer(allocatingCapacity: byteCount)
+        self.buffer = UnsafeMutablePointer<Channel>.allocate(capacity: byteCount)
         try read()
     }
 
@@ -86,7 +87,7 @@ public class TIFFImage<Channel> : ImageProtocol {
         } else {
             extraSamples = []
         } 
-        let bps = UInt32(strideof(Channel.self) * 8)
+        let bps = UInt32(MemoryLayout<Channel>.stride * 8)
         self.attributes = try TIFFAttributes(writingAt: ptr,
                                          size: size,
                                          bitsPerSample: bps,
@@ -98,7 +99,8 @@ public class TIFFImage<Channel> : ImageProtocol {
                                          extraSamples: extraSamples)
         let pixelCount = size.width * size.height
         let byteCount = pixelCount * Int(attributes.bitsPerSample)
-        self.buffer = UnsafeMutablePointer(allocatingCapacity: byteCount)
+        
+        self.buffer = UnsafeMutablePointer<Channel>.allocate(capacity: byteCount)
     }
 
     public init(size: Size, hasAlpha: Bool = false) {
@@ -111,7 +113,7 @@ public class TIFFImage<Channel> : ImageProtocol {
         } else {
             extraSamples = []
         }
-        let bps = UInt32(strideof(Channel.self) * 8)
+        let bps = UInt32(MemoryLayout<Channel>.stride * 8)
         self.attributes = try! TIFFAttributes(size: size,
                                      bitsPerSample: bps,
                                      samplesPerPixel: hasAlpha ? 4 : 3,
@@ -122,7 +124,7 @@ public class TIFFImage<Channel> : ImageProtocol {
                                      extraSamples: extraSamples)
         let pixelCount = size.width * size.height
         let byteCount = pixelCount * Int(attributes.bitsPerSample)
-        self.buffer = UnsafeMutablePointer(allocatingCapacity: byteCount)
+        self.buffer = UnsafeMutablePointer<Channel>.allocate(capacity: byteCount)
     }
 
 
@@ -134,7 +136,7 @@ public class TIFFImage<Channel> : ImageProtocol {
         }
         self.tiffref = ptr
         self.attributes = try TIFFAttributes(writingAt: ptr, coping: self.attributes)
-        guard UInt32(8 * strideof(Channel.self)) == attributes.bitsPerSample else {
+        guard UInt32(8 * MemoryLayout<Channel>.stride) == attributes.bitsPerSample else {
             throw TIFFError.IncorrectChannelSize(attributes.bitsPerSample)
         }
     }
@@ -142,7 +144,7 @@ public class TIFFImage<Channel> : ImageProtocol {
     deinit {
         let pixelCount = size.width * size.height
         let byteCount = pixelCount * Int(attributes.bitsPerSample)
-        self.buffer.deallocateCapacity(byteCount)
+        self.buffer.deallocate(capacity: byteCount)
         self.close()
     }
 
@@ -178,7 +180,7 @@ extension TIFFImage {
         }
 
         let scount = Int(attributes.samplesPerPixel)
-        let expectedBytesInAScanline = strideof(Channel.self) * scount * size.width
+        let expectedBytesInAScanline = MemoryLayout<Channel>.stride * scount * size.width
         for y in r.lowerBound..<r.upperBound {
             guard expectedBytesInAScanline == TIFFScanlineSize(ref) else {
                 throw TIFFError.InternalInconsistancy
@@ -199,7 +201,7 @@ extension TIFFImage {
             throw TIFFError.InvalidReference
         }
         let scount = Int(attributes.samplesPerPixel)
-        let expectedBytesInAScanline = strideof(Channel.self) * scount * size.width
+        let expectedBytesInAScanline = MemoryLayout<Channel>.stride * scount * size.width
         for y in r.lowerBound..<r.upperBound {
             guard expectedBytesInAScanline == TIFFScanlineSize(ref) else {
                 throw TIFFError.InternalInconsistancy
@@ -423,7 +425,7 @@ public struct TIFFAttributes {
         }
         var count: UInt16 = 4
         typealias Ptr = UnsafeMutablePointer<UInt16>
-        var buff: Ptr? = Ptr(allocatingCapacity: Int(count))
+        var buff: Ptr? = Ptr.allocate(capacity: Int(count))
         let result = TIFFGetField_ExtraSample(ref,
                                               &count,
                                               &buff)
