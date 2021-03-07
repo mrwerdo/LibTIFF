@@ -4,6 +4,8 @@
 
 import Geometry
 
+public typealias Size = Size2D
+
 /// Protocol which all images should conform to.
 /// 
 /// When working with images, we generally want:
@@ -63,11 +65,11 @@ extension ImageProtocol {
     }
 }
 
-struct ImageIterator<Image: ImageProtocol> : IteratorProtocol {
+public struct ImageIterator<Image: ImageProtocol> : IteratorProtocol {
     var index: Int
     var image: Image
     
-    mutating func next() -> Pixel<Image.Channel>? {
+    public mutating func next() -> Pixel<Image.Channel>? {
         let next = index
         guard next != image.endIndex else {
             return nil
@@ -83,7 +85,7 @@ struct ImageIterator<Image: ImageProtocol> : IteratorProtocol {
 }
 
 extension ImageProtocol {
-    func makeIterator() -> ImageIterator<Self> {
+    public func makeIterator() -> ImageIterator<Self> {
         return ImageIterator(self)
     }
 }

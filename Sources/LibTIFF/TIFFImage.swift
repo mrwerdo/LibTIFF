@@ -33,7 +33,7 @@ public class TIFFImage<Channel> : ImageProtocol {
     /// you should create a new one.
     public var size: Size {
         get {
-            return Size(Int(attributes.width), Int(attributes.height))
+            return Size(width: Int(attributes.width), height: Int(attributes.height))
         }
     }
 
@@ -142,9 +142,7 @@ public class TIFFImage<Channel> : ImageProtocol {
     }
 
     deinit {
-        let pixelCount = size.width * size.height
-        let byteCount = pixelCount * Int(attributes.bitsPerSample)
-        self.buffer.deallocate(capacity: byteCount)
+        self.buffer.deallocate()
         self.close()
     }
 

@@ -15,14 +15,11 @@ class TIFFImageTests : XCTestCase {
 
     override func setUp() {
         let template = "/tmp/tmpdir.XXXXXX"
-        template.withCString { (cstr) in 
-            if let cpath = mkdtemp(UnsafeMutablePointer(cstr)) {
-                let path = String(cString: cpath)
-                basePath = path + "/"
-                tempPath = path
-            } else {
-                exit(EXIT_FAILURE)
-            }
+        var bytes = template.utf8CString.map { $0 }
+        if let cpath = mkdtemp(&bytes) {
+            let path = String(cString: cpath)
+            basePath = path + "/"
+            tempPath = path
         }
     }
 
@@ -35,7 +32,7 @@ class TIFFImageTests : XCTestCase {
     func testWritingAndReading() {
         let size = 100 * 100 * 3
         var written = [UInt8](repeating: 0, count: size)
-        let image = try! TIFFImage<UInt8>(writingAt: path(), size: Size(100, 100), hasAlpha: false)
+        let image = try! TIFFImage<UInt8>(writingAt: path(), size: Size(width: 100, height: 100), hasAlpha: false)
 
         // Turn on every red pixel.
         var c = 0
@@ -61,7 +58,7 @@ class TIFFImageTests : XCTestCase {
     func testBlueAndGreenImageVertical() {
         let size = 100 * 100 * 3
         var written = [UInt8](repeating: 0, count: size)
-        let image = try! TIFFImage<UInt8>(writingAt: path(), size: Size(100, 100), hasAlpha: false)
+        let image = try! TIFFImage<UInt8>(writingAt: path(), size: Size(width: 100, height: 100), hasAlpha: false)
 
         for y in 0..<100 {
             for x in 0..<100 {
@@ -87,7 +84,7 @@ class TIFFImageTests : XCTestCase {
     func testBlueAndGreenImageHorizontal() {
         let size = 100 * 100 * 3
         var written = [UInt8](repeating: 0, count: size)
-        let image = try! TIFFImage<UInt8>(writingAt: path(), size: Size(100, 100), hasAlpha: false)
+        let image = try! TIFFImage<UInt8>(writingAt: path(), size: Size(width: 100, height: 100), hasAlpha: false)
 
         for y in 0..<100 {
             let offset = y % 3
@@ -122,7 +119,7 @@ class TIFFImageTests : XCTestCase {
     func testMultipleCloses() {
         let size = 100 * 100 * 3
         var written = [UInt8](repeating: 0, count: size)
-        let image = try! TIFFImage<UInt8>(writingAt: path(), size: Size(100, 100), hasAlpha: false)
+        let image = try! TIFFImage<UInt8>(writingAt: path(), size: Size(width: 100, height: 100), hasAlpha: false)
 
         for y in 0..<100 {
             for dx in 0..<100 {
@@ -151,20 +148,20 @@ class TIFFImageTests : XCTestCase {
 
     func testWritingWithoutFileBacking() {
 
-        let image = TIFFImage<UInt8>(size: Size(128, 128))
+        let image = TIFFImage<UInt8>(size: Size(width: 128, height: 128))
         
         var counter: UInt32 = 0
         for pixel in image {
             let d = pixel.channels
             for k in 0..<image.channelCount {
-                d[k] = UInt8(truncatingBitPattern: counter)
+                d[k] = UInt8(truncatingIfNeeded: counter)
                 counter += 1
             }
         }
         counter = 0
         while counter < UInt32(image.size.width * image.size.height * image.channelCount) {
             let i = Int(counter)
-            if UInt8(truncatingBitPattern: counter) != image.buffer[i] {
+            if UInt8(truncatingIfNeeded: counter) != image.buffer[i] {
                 print(counter, image.buffer[i], "contents of image.buffer != input")
             }
             counter += 1
@@ -174,7 +171,7 @@ class TIFFImageTests : XCTestCase {
         counter = 0
         while counter < UInt32(image.size.width * image.size.height * image.channelCount) {
             let i = Int(counter)
-            if UInt8(truncatingBitPattern: counter) != image.buffer[i] {
+            if UInt8(truncatingIfNeeded: counter) != image.buffer[i] {
                 print(counter, image.buffer[i], "contents of image.buffer != input")
             }
             counter += 1
@@ -185,7 +182,7 @@ class TIFFImageTests : XCTestCase {
     func testBitsPerSampleUInt32() {
         let size = 100 * 100 * 3
         var written = [UInt32](repeating: 0, count: size)
-        let image = try! TIFFImage<UInt32>(writingAt: path(), size: Size(100, 100), hasAlpha: false)
+        let image = try! TIFFImage<UInt32>(writingAt: path(), size: Size(width: 100, height: 100), hasAlpha: false)
 
         for y in 0..<100 {
             for dx in 0..<100 {
