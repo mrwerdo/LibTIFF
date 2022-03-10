@@ -400,7 +400,7 @@ public struct TIFFAttributes {
                                          UInt32(bitPattern: tag),
                                          &value)
             guard result == 1 else {
-                throw TIFFError.SetField(tag)
+                throw TIFFError.GetField(tag)
             }
             return value as! T
         case is UInt32.Type:
@@ -409,7 +409,7 @@ public struct TIFFAttributes {
                                          UInt32(bitPattern: tag),
                                          &value)
             guard result == 1 else {
-                throw TIFFError.SetField(tag)
+                throw TIFFError.GetField(tag)
             }
             return value as! T
         default:
