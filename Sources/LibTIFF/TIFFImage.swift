@@ -423,6 +423,7 @@ public struct TIFFAttributes {
         var count: UInt16 = 4
         typealias Ptr = UnsafeMutablePointer<UInt16>
         var buff: Ptr? = Ptr.allocate(capacity: Int(count))
+        defer { buff?.deallocate() }
         let result = TIFFGetField_ExtraSample(ref,
                                               &count,
                                               &buff)
