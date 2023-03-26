@@ -195,7 +195,7 @@ void WriteTable(FILE *fd, const TIFFFaxTabEnt *T, int Size, const char *name)
 }
 
 /* initialise the huffman code tables */
-int main(int argc, char *argv[])
+int mkg3states(int argc, char *argv[])
 {
     FILE *fd;
     char *outputfile;

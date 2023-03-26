@@ -7,7 +7,7 @@ let package = Package(
         .library(name: "LibTIFF", targets: ["LibTIFF"])
     ],
     dependencies: [
-        .package(url: "https://github.com/mrwerdo/Geometry", from: "1.0.0")
+        .package(url: "https://github.com/mrwerdo/Geometry", from: "1.2.4")
     ],
     targets: [
         .target(name: "CLibTIFF", exclude: ["README", "VERSION", "ChangeLog", "COPYRIGHT"]),
